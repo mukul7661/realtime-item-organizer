@@ -2,7 +2,14 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import styled from "@emotion/styled";
 
-const DraggableItem = ({ id, title, icon, isActive }) => {
+interface DraggableItemProps {
+  id: string;
+  title: string;
+  icon: string;
+  isActive?: boolean;
+}
+
+const DraggableItem = ({ id, title, icon }: DraggableItemProps) => {
   const {
     attributes,
     listeners,
@@ -21,7 +28,7 @@ const DraggableItem = ({ id, title, icon, isActive }) => {
     transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    position: "relative",
+    position: "relative" as const,
     zIndex: isDragging ? 1 : 0,
   };
 

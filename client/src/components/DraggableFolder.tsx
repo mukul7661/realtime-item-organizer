@@ -1,8 +1,23 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import styled from "@emotion/styled";
+import { ReactNode } from "react";
 
-const DraggableFolder = ({ id, name, isOpen, children, onToggle }) => {
+interface DraggableFolderProps {
+  id: string;
+  name: string;
+  isOpen: boolean;
+  children: ReactNode;
+  onToggle: () => void;
+}
+
+const DraggableFolder = ({
+  id,
+  name,
+  isOpen,
+  children,
+  onToggle,
+}: DraggableFolderProps) => {
   const {
     isOver,
     attributes,

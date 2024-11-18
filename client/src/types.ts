@@ -1,15 +1,15 @@
-interface Item {
+export interface Item {
   id: string;
   title: string;
   icon: string;
-  parentId: string | null;
+  folderId: string | null;
   order: number;
 }
 
-interface Folder {
+export interface Folder {
   id: string;
   name: string;
   isOpen: boolean;
-  parentId: string | null;
   order: number;
+  items?: Item[];
 }

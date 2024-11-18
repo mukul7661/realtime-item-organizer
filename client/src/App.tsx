@@ -2,34 +2,30 @@ import { useState, useEffect } from "react";
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
   DragOverlay,
-  pointerWithin,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { io } from "socket.io-client";
 import styled from "@emotion/styled";
 import DraggableItem from "./components/DraggableItem";
 import DraggableFolder from "./components/DraggableFolder";
 import DroppableRoot from "./components/DroppableRoot";
-
-const socket = io("http://localhost:3001");
+import { Item, Folder } from "./types";
+import { socketService } from "./services/socket";
+import { fetchInitialState } from "./services/api";
 
 function App() {
   const [items, setItems] = useState<Item[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [newItemTitle, setNewItemTitle] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<Item | null>(null);
 
   const sensors = useSensors(
@@ -40,45 +36,39 @@ function App() {
     })
   );
 
-  console.log(items);
-
   useEffect(() => {
-    socket.on("updateState", ({ items, folders }) => {
-      setItems(items);
-      setFolders(folders);
-    });
+    socketService.connect();
+
+    const cleanup = socketService.setupListeners(
+      ({ items: newItems, folders: newFolders }) => {
+        if (newItems) setItems(newItems);
+        if (newFolders) setFolders(newFolders);
+      }
+    );
 
     return () => {
-      socket.disconnect();
+      cleanup();
+      socketService.disconnect();
     };
+  }, []);
+  useEffect(() => {
+    const loadInitialState = async () => {
+      try {
+        const data = await fetchInitialState();
+        if (data.items) setItems(data.items);
+        if (data.folders) setFolders(data.folders);
+      } catch (error) {
+        console.error("Failed to load initial state:", error);
+      }
+    };
+
+    loadInitialState();
   }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
     const activeId = event.active.id.toString();
     const item = items.find((item) => item.id === activeId);
     setActiveItem(item || null);
-    setActiveId(activeId);
-  };
-
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id.toString();
-    const overId = over.id.toString();
-
-    const activeItem = items.find((item) => item.id === activeId);
-    if (!activeItem) return;
-
-    const overFolder = folders.find((folder) => folder.id === overId);
-    if (!overFolder) return;
-
-    // if (activeItem.folderId !== overFolder.id) {
-    //   const oldIndex = items.findIndex((item) => item.id === activeId);
-    //   const newItems = [...items];
-    //   newItems[oldIndex] = { ...activeItem, folderId: overFolder.id };
-    //   setItems(newItems);
-    // }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -88,28 +78,44 @@ function App() {
     const activeId = active.id.toString();
     const overId = over.id.toString();
 
+    const activeFolder = folders.find((f) => f.id === activeId);
+
+    if (activeFolder) {
+      const oldIndex = folders.findIndex((f) => f.id === activeId);
+      const newIndex = folders.findIndex((f) => f.id === overId);
+
+      if (newIndex !== -1) {
+        const newFolders = arrayMove(folders, oldIndex, newIndex).map(
+          (folder, index) => ({ ...folder, order: index })
+        );
+        setFolders(newFolders);
+        socketService.emitUpdateFolders(newFolders);
+      }
+      return;
+    }
+
     const activeItem = items.find((item) => item.id === activeId);
     const overItem = items.find((item) => item.id === overId);
 
     if (overId === "root-container") {
-      if (activeItem.folderId !== null) {
+      if (activeItem && activeItem.folderId !== null) {
         const updatedItems = items.map((item) =>
           item.id === activeId ? { ...item, folderId: null } : item
         );
         setItems(updatedItems);
-        socket.emit("updateItems", updatedItems);
+        socketService.emitUpdateItems(updatedItems);
       }
       return;
     }
 
     const overFolder = folders.find((folder) => folder.id === overId);
     console.log(overFolder);
-    if (overFolder && activeItem.folderId !== overFolder.id) {
+    if (overFolder && activeItem && activeItem.folderId !== overFolder.id) {
       const updatedItems = items.map((item) =>
         item.id === activeId ? { ...item, folderId: overFolder.id } : item
       );
       setItems(updatedItems);
-      socket.emit("updateItems", updatedItems);
+      socketService.emitUpdateItems(updatedItems);
     }
 
     // Handle reordering within same context
@@ -121,7 +127,7 @@ function App() {
         (item, index) => ({ ...item, order: index })
       );
       setItems(newItems);
-      socket.emit("updateItems", newItems);
+      socketService.emitUpdateItems(newItems);
     }
 
     // Handle folder reordering
@@ -134,7 +140,7 @@ function App() {
 
       const newFolders = arrayMove(folders, oldIndex, newIndex);
       setFolders(newFolders);
-      socket.emit("updateFolders", newFolders);
+      socketService.emitUpdateFolders(newFolders);
     }
   };
 
@@ -150,9 +156,7 @@ function App() {
       order: items.length,
     };
 
-    const updatedItems = [...items, newItem];
-    setItems(updatedItems);
-    socket.emit("updateItems", updatedItems);
+    socketService.emitAddItem(newItem);
     setNewItemTitle("");
   };
 
@@ -167,9 +171,7 @@ function App() {
       order: folders.length,
     };
 
-    const updatedFolders = [...folders, newFolder];
-    setFolders(updatedFolders);
-    socket.emit("updateFolders", updatedFolders);
+    socketService.emitAddFolder(newFolder);
     setNewFolderName("");
   };
 
@@ -199,9 +201,7 @@ function App() {
 
       <DndContext
         sensors={sensors}
-        // collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <SortableContext
@@ -219,7 +219,7 @@ function App() {
                     f.id === folder.id ? { ...f, isOpen: !f.isOpen } : f
                   );
                   setFolders(newFolders);
-                  socket.emit("updateFolders", newFolders);
+                  socketService.emitUpdateFolders(newFolders);
                 }}
               >
                 <SortableContext

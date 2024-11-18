@@ -1,0 +1,25 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Item {
+  id       String  @id
+  title    String
+  icon     String
+  folderId String?
+  order    Int
+  folder   Folder? @relation(fields: [folderId], references: [id])
+}
+
+model Folder {
+  id     String  @id
+  name   String
+  isOpen Boolean
+  order  Int
+  items  Item[]
+}
