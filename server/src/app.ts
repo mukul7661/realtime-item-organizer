@@ -17,7 +17,11 @@ app.use(cors());
 app.use(express.json());
 
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL },
+  cors: {
+    origin: [process.env.DEV_CLIENT_URL, process.env.PREVIEW_CLIENT_URL].filter(
+      Boolean
+    ) as string[],
+  },
 });
 
 app.use("/api", createApiRouter(prisma));
