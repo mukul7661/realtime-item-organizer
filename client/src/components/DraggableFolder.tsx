@@ -4,6 +4,7 @@ import styled from "@emotion/styled";
 
 const DraggableFolder = ({ id, name, isOpen, children, onToggle }) => {
   const {
+    isOver,
     attributes,
     listeners,
     setNodeRef,
@@ -15,6 +16,7 @@ const DraggableFolder = ({ id, name, isOpen, children, onToggle }) => {
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
+    color: isOver ? "green" : undefined,
   };
 
   return (

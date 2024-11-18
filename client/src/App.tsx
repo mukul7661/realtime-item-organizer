@@ -8,6 +8,7 @@ import {
   useSensor,
   useSensors,
   closestCenter,
+  DragOverlay,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -28,11 +29,12 @@ function App() {
   const [newItemTitle, setNewItemTitle] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<Item | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 1,
       },
     })
   );
@@ -51,7 +53,10 @@ function App() {
   }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    const activeId = event.active.id.toString();
+    const item = items.find((item) => item.id === activeId);
+    setActiveItem(item || null);
+    setActiveId(activeId);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -67,12 +72,12 @@ function App() {
     const overFolder = folders.find((folder) => folder.id === overId);
     if (!overFolder) return;
 
-    if (activeItem.folderId !== overFolder.id) {
-      const oldIndex = items.findIndex((item) => item.id === activeId);
-      const newItems = [...items];
-      newItems[oldIndex] = { ...activeItem, folderId: overFolder.id };
-      setItems(newItems);
-    }
+    // if (activeItem.folderId !== overFolder.id) {
+    //   const oldIndex = items.findIndex((item) => item.id === activeId);
+    //   const newItems = [...items];
+    //   newItems[oldIndex] = { ...activeItem, folderId: overFolder.id };
+    //   setItems(newItems);
+    // }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -248,6 +253,10 @@ function App() {
               ))}
           </SortableContext>
         </DroppableRoot>
+
+        <DragOverlay>
+          {activeItem ? <DraggableItem {...activeItem} /> : null}
+        </DragOverlay>
       </DndContext>
     </Container>
   );
