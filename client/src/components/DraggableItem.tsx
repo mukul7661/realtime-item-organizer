@@ -10,13 +10,17 @@ const DraggableItem = ({ id, title, icon, isActive }) => {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({
+    id,
+    data: {
+      type: "item",
+    },
+  });
 
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    // backgroundColor: isDragging ? "#f0f0f0" : "white",
     position: "relative",
     zIndex: isDragging ? 1 : 0,
   };
@@ -39,7 +43,6 @@ const ItemContainer = styled.div`
   align-items: center;
   gap: 8px;
   padding: 8px;
-  // background: white;
   border: 1px solid #eee;
   margin: 4px 0;
   cursor: move;

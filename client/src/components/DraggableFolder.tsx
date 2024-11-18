@@ -16,12 +16,18 @@ const DraggableFolder = ({ id, name, isOpen, children, onToggle }) => {
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
-    color: isOver ? "green" : undefined,
   };
 
   return (
-    <FolderContainer ref={setNodeRef} isDragging={isDragging}>
-      <FolderHeader style={style} {...attributes} {...listeners}>
+    <FolderContainer
+      ref={setNodeRef}
+      isDragging={isDragging}
+      isOver={isOver}
+      {...attributes}
+      {...listeners}
+      style={style}
+    >
+      <FolderHeader>
         <ToggleButton
           onClick={(e) => {
             e.stopPropagation();
@@ -37,9 +43,12 @@ const DraggableFolder = ({ id, name, isOpen, children, onToggle }) => {
   );
 };
 
-const FolderContainer = styled.div<{ isDragging: boolean }>`
+const FolderContainer = styled.div<{ isDragging: boolean; isOver: boolean }>`
   margin: 4px 0;
   opacity: ${(props) => (props.isDragging ? 0.5 : 1)};
+  border: 1px solid ${(props) => (props.isOver ? "#0070f3" : "#eee")};
+  cursor: move;
+  user-select: none;
 `;
 
 const FolderHeader = styled.div`
@@ -47,10 +56,6 @@ const FolderHeader = styled.div`
   align-items: center;
   gap: 8px;
   padding: 8px;
-  // background: #f5f5f5;
-  border: 1px solid #eee;
-  cursor: move;
-  user-select: none;
 `;
 
 const FolderContent = styled.div`

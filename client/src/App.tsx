@@ -9,6 +9,7 @@ import {
   useSensors,
   closestCenter,
   DragOverlay,
+  pointerWithin,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -198,7 +199,7 @@ function App() {
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        // collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
@@ -208,7 +209,7 @@ function App() {
           strategy={verticalListSortingStrategy}
         >
           {folders
-            // .sort((a, b) => a.order - b.order)
+            .sort((a, b) => a.order - b.order)
             .map((folder) => (
               <DraggableFolder
                 key={folder.id}
