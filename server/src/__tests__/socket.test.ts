@@ -3,16 +3,23 @@ import { createServer } from "http";
 import Client from "socket.io-client";
 import { setupSocket } from "../socket";
 import { mockPrisma } from "../mocks/prisma.mock";
+import { S3Service } from "../services/s3Service";
+
+jest.mock("../services/s3Service");
 
 describe("Socket.io Server", () => {
   let io: Server;
   let clientSocket: any;
   let httpServer: any;
+  let mockS3Service: jest.Mocked<S3Service>;
 
   beforeAll((done) => {
+    mockS3Service = new S3Service() as jest.Mocked<S3Service>;
+    mockS3Service.getSignedUrl = jest.fn().mockResolvedValue("signed-url");
+
     httpServer = createServer();
     io = new Server(httpServer);
-    setupSocket(io, mockPrisma as any);
+    setupSocket(io, mockPrisma as any, mockS3Service);
     httpServer.listen(() => {
       const port = (httpServer.address() as any).port;
       clientSocket = Client(`http://localhost:${port}`);
@@ -35,29 +42,30 @@ describe("Socket.io Server", () => {
       const mockItem = {
         id: "1",
         title: "Test Item",
-        icon: "📝",
+        icon: "https://example.com/test.png",
         folderId: null,
         order: 0,
       };
 
-      const mockUpdatedItems = [mockItem];
-      mockPrisma.item.create.mockResolvedValueOnce(mockItem);
-      mockPrisma.item.findMany.mockResolvedValueOnce(mockUpdatedItems);
+      mockPrisma.item.findUnique.mockResolvedValueOnce(mockItem);
 
-      clientSocket.emit("addItem", mockItem);
+      clientSocket.emit("addItem", mockItem.id);
 
-      clientSocket.once("updateState", (data: any) => {
+      clientSocket.once("newItem", (data: any) => {
         try {
-          expect(data.items).toEqual(mockUpdatedItems);
-          expect(mockPrisma.item.create).toHaveBeenCalledWith({
-            data: mockItem,
+          expect(data.newItem).toEqual({
+            ...mockItem,
+            icon: "signed-url",
+          });
+          expect(mockPrisma.item.findUnique).toHaveBeenCalledWith({
+            where: { id: mockItem.id },
           });
           done();
         } catch (error) {
           done(error);
         }
       });
-    }, 10000);
+    });
   });
 
   describe("addFolder", () => {

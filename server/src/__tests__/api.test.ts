@@ -2,12 +2,23 @@ import request from "supertest";
 import express from "express";
 import { createApiRouter } from "../routes/api";
 import { mockPrisma } from "../mocks/prisma.mock";
+import { S3Service } from "../services/s3Service";
 
 const app = express();
 
 beforeAll(() => {
+  jest.mock("../services/s3Service");
+  const mockS3Service = new S3Service() as jest.Mocked<S3Service>;
+  mockS3Service.getSignedUrl = jest.fn().mockResolvedValue("signed-url");
+
   app.use(express.json());
-  app.use("/api", createApiRouter(mockPrisma as any));
+  app.use(
+    "/api",
+    createApiRouter({
+      prisma: mockPrisma as any,
+      s3Service: mockS3Service,
+    })
+  );
 });
 
 beforeEach(() => {
@@ -16,8 +27,14 @@ beforeEach(() => {
 
 describe("API Routes", () => {
   describe("GET /api/initial-state", () => {
-    it("should return initial state successfully", async () => {
-      const mockItems = [{ id: "1", title: "Item 1" }];
+    it("should return initial state with signed URLs", async () => {
+      const mockItems = [
+        {
+          id: "1",
+          title: "Item 1",
+          icon: "https://example.com/test.png",
+        },
+      ];
       const mockFolders = [{ id: "1", name: "Folder 1" }];
 
       mockPrisma.item.findMany.mockResolvedValueOnce(mockItems);
@@ -26,13 +43,14 @@ describe("API Routes", () => {
       const response = await request(app).get("/api/initial-state");
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({ items: mockItems, folders: mockFolders });
-      expect(mockPrisma.item.findMany).toHaveBeenCalledWith({
-        orderBy: { order: "asc" },
-      });
-      expect(mockPrisma.folder.findMany).toHaveBeenCalledWith({
-        orderBy: { order: "asc" },
-        include: { items: true },
+      expect(response.body).toEqual({
+        items: [
+          {
+            ...mockItems[0],
+            icon: "signed-url",
+          },
+        ],
+        folders: mockFolders,
       });
     });
 

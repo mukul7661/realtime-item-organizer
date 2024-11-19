@@ -1,43 +1,41 @@
 import express from "express";
+import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
-import http from "http";
-import dotenv from "dotenv";
-import { setupSocket } from "./socket";
 import { createApiRouter } from "./routes/api";
+import { setupSocket } from "./socket";
+import { S3Service } from "./services/s3Service";
 
-dotenv.config();
+const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.DEV_CLIENT_URL || process.env.PREVIEW_CLIENT_URL,
+    methods: ["GET", "POST"],
+  },
+});
 
 const prisma = new PrismaClient();
-const app = express();
-const server = http.createServer(app);
+const s3Service = new S3Service();
 
 app.use(cors());
 app.use(express.json());
 
-const io = new Server(server, {
-  cors: {
-    origin: [process.env.DEV_CLIENT_URL, process.env.PREVIEW_CLIENT_URL].filter(
-      Boolean
-    ) as string[],
-  },
+app.use(
+  "/api",
+  createApiRouter({
+    prisma,
+    s3Service,
+  })
+);
+
+setupSocket(io, prisma, s3Service);
+
+const PORT = process.env.PORT || 4000;
+
+httpServer.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
-app.use("/api", createApiRouter(prisma));
-
-setupSocket(io, prisma);
-
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-process.on("SIGTERM", async () => {
-  console.log(
-    "SIGTERM received. Closing HTTP server and database connection..."
-  );
-  await prisma.$disconnect();
-  server.close();
-  process.exit(0);
-});
+export { app, httpServer };

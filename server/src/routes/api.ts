@@ -23,9 +23,14 @@ const upload = multer({
   },
 });
 
-export const createApiRouter = (prisma: PrismaClient) => {
+export const createApiRouter = ({
+  prisma,
+  s3Service,
+}: {
+  prisma: PrismaClient;
+  s3Service: S3Service;
+}) => {
   const router = Router();
-  const s3Service = new S3Service();
   const stateController = new StateController(prisma, s3Service);
   const itemsController = new ItemsController(prisma, s3Service);
 

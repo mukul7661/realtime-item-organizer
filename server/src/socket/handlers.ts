@@ -95,7 +95,7 @@ export class SocketHandlers {
       const updatedItems = await this.prisma.item.findMany({
         orderBy: { order: "asc" },
       });
-      this.io.emit("updateState", { items: updatedItems });
+      this.io.emit("updateState", { items: items });
     } catch (error) {
       console.error("Failed to update items:", error);
       this.io.emit("error", { message: "Invalid items data" });
