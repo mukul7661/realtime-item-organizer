@@ -14,6 +14,20 @@ export const fetchInitialState = async () => {
   }
 };
 
+export const createItem = async (formData: FormData) => {
+  try {
+    const response = await fetch(`${SERVER_URL}/api/items`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Failed to create item:", error);
+    throw error;
+  }
+};
+
 export const socketService = {
   emitAddItem: (socket: Socket, item: Item) => {
     socket.emit("addItem", item);
@@ -33,7 +47,8 @@ export const socketService = {
 
   setupSocketListeners: (
     socket: Socket,
-    onUpdateState: (data: { items?: Item[]; folders?: Folder[] }) => void
+    onUpdateState: (data: { items?: Item[]; folders?: Folder[] }) => void,
+    onNewItem: (data: { newItem: Item }) => void
   ) => {
     socket.on("connect", () => {
       console.log("Client: Connected to server", socket.id);
@@ -47,12 +62,15 @@ export const socketService = {
       console.log("Client: Disconnected from server");
     });
 
+    socket.on("newItem", onNewItem);
+
     socket.on("updateState", onUpdateState);
 
     return () => {
       socket.off("connect");
       socket.off("connect_error");
       socket.off("disconnect");
+      socket.off("newItem");
       socket.off("updateState");
     };
   },

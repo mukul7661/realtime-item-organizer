@@ -19,7 +19,7 @@ import DraggableFolder from "./components/DraggableFolder";
 import DroppableRoot from "./components/DroppableRoot";
 import { Item, Folder } from "./types";
 import { socketService } from "./services/socket";
-import { fetchInitialState } from "./services/api";
+import { createItem, fetchInitialState } from "./services/api";
 
 function App() {
   const [items, setItems] = useState<Item[]>([]);
@@ -27,6 +27,7 @@ function App() {
   const [newItemTitle, setNewItemTitle] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [activeItem, setActiveItem] = useState<Item | null>(null);
+  const [iconFile, setIconFile] = useState<File | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -43,6 +44,9 @@ function App() {
       ({ items: newItems, folders: newFolders }) => {
         if (newItems) setItems(newItems);
         if (newFolders) setFolders(newFolders);
+      },
+      ({ newItem }) => {
+        setItems((prevItems) => [...prevItems, newItem]);
       }
     );
 
@@ -109,7 +113,6 @@ function App() {
     }
 
     const overFolder = folders.find((folder) => folder.id === overId);
-    console.log(overFolder);
     if (overFolder && activeItem && activeItem.folderId !== overFolder.id) {
       const updatedItems = items.map((item) =>
         item.id === activeId ? { ...item, folderId: overFolder.id } : item
@@ -144,20 +147,23 @@ function App() {
     }
   };
 
-  const handleAddItem = (e: React.FormEvent) => {
+  const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItemTitle.trim()) return;
-
-    const newItem = {
-      id: crypto.randomUUID(),
-      title: newItemTitle,
-      icon: "📄",
-      folderId: null,
-      order: items.length,
-    };
-
-    socketService.emitAddItem(newItem);
-    setNewItemTitle("");
+    if (!newItemTitle.trim() || !iconFile) return;
+    const id = crypto.randomUUID();
+    const formData = new FormData();
+    formData.append("title", newItemTitle);
+    formData.append("icon", iconFile);
+    formData.append("order", items.length.toString());
+    formData.append("id", id);
+    try {
+      await createItem(formData);
+      socketService.emitAddItem(id);
+      setNewItemTitle("");
+      setIconFile(null);
+    } catch (error) {
+      console.error("Failed to create item:", error);
+    }
   };
 
   const handleAddFolder = (e: React.FormEvent) => {
@@ -185,7 +191,14 @@ function App() {
             onChange={(e) => setNewItemTitle(e.target.value)}
             placeholder="New item title"
           />
-          <Button type="submit">Add Item</Button>
+          <FileInput
+            type="file"
+            accept=".png,.jpg,.jpeg,.svg"
+            onChange={(e) => setIconFile(e.target.files?.[0] || null)}
+          />
+          <Button type="submit" disabled={!iconFile || !newItemTitle.trim()}>
+            Add Item
+          </Button>
         </Form>
 
         <Form onSubmit={handleAddFolder}>
@@ -297,6 +310,12 @@ const Button = styled.button`
   &:hover {
     background: #0051a2;
   }
+`;
+
+const FileInput = styled.input`
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 `;
 
 export default App;

@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import styled from "@emotion/styled";
+import { useState } from "react";
 
 interface DraggableItemProps {
   id: string;
@@ -10,6 +11,8 @@ interface DraggableItemProps {
 }
 
 const DraggableItem = ({ id, title, icon }: DraggableItemProps) => {
+  const [imageError, setImageError] = useState(false);
+
   const {
     attributes,
     listeners,
@@ -39,7 +42,17 @@ const DraggableItem = ({ id, title, icon }: DraggableItemProps) => {
       {...attributes}
       {...listeners}
     >
-      <span>{icon}</span>
+      <IconWrapper>
+        {imageError ? (
+          <FallbackIcon>📄</FallbackIcon>
+        ) : (
+          <IconImage
+            src={icon}
+            alt={title}
+            onError={() => setImageError(true)}
+          />
+        )}
+      </IconWrapper>
       <span>{title}</span>
     </ItemContainer>
   );
@@ -55,6 +68,24 @@ const ItemContainer = styled.div`
   cursor: move;
   user-select: none;
   touch-action: none;
+`;
+
+const IconWrapper = styled.div`
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const IconImage = styled.img`
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+`;
+
+const FallbackIcon = styled.span`
+  font-size: 20px;
 `;
 
 export default DraggableItem;

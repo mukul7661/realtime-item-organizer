@@ -7,26 +7,42 @@ import {
   updateItemsSchema,
   updateFoldersSchema,
 } from "../schemas/validation";
+import { S3Service } from "../services/s3Service";
 
 export class SocketHandlers {
-  constructor(private io: Server, private prisma: PrismaClient) {}
+  constructor(
+    private io: Server,
+    private prisma: PrismaClient,
+    private s3Service: S3Service = new S3Service()
+  ) {}
 
-  async handleAddItem(item: unknown) {
+  async handleAddItem(itemId: string) {
     try {
-      const validatedItem = itemSchema.parse(item);
-      await this.prisma.item.create({
-        data: {
-          id: validatedItem.id,
-          title: validatedItem.title,
-          icon: validatedItem.icon,
-          folderId: validatedItem.folderId,
-          order: validatedItem.order,
-        },
+      const item = await this.prisma.item.findUnique({
+        where: { id: itemId },
       });
-      const updatedItems = await this.prisma.item.findMany({
-        orderBy: { order: "asc" },
-      });
-      this.io.emit("updateState", { items: updatedItems });
+
+      if (!item) {
+        return;
+      }
+
+      let itemWithSignedUrl = item;
+
+      const urlParts = item.icon.split(".com/");
+      const key = urlParts[1];
+
+      try {
+        const signedUrl = await this.s3Service.getSignedUrl(key);
+        itemWithSignedUrl = {
+          ...item,
+          icon: signedUrl,
+        };
+      } catch (error) {
+        console.error(`Failed to get signed URL for item ${item.id}:`, error);
+        return item; // Fallback to original URL if signing fails
+      }
+
+      this.io.emit("newItem", { newItem: itemWithSignedUrl });
     } catch (error) {
       console.error("Failed to add item:", error);
       this.io.emit("error", { message: "Invalid item data" });

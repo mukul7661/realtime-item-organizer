@@ -21,7 +21,8 @@ class SocketService {
   }
 
   setupListeners(
-    onUpdateState: (data: { items?: Item[]; folders?: Folder[] }) => void
+    onUpdateState: (data: { items?: Item[]; folders?: Folder[] }) => void,
+    onNewItem: (data: { newItem: Item }) => void
   ) {
     if (!this.socket) return () => {};
 
@@ -38,7 +39,7 @@ class SocketService {
     });
 
     this.socket.on("updateState", onUpdateState);
-
+    this.socket.on("newItem", onNewItem);
     return () => {
       this.socket?.off("connect");
       this.socket?.off("connect_error");
@@ -47,8 +48,8 @@ class SocketService {
     };
   }
 
-  emitAddItem(item: Item) {
-    this.socket?.emit("addItem", item);
+  emitAddItem(itemId: string) {
+    this.socket?.emit("addItem", itemId);
   }
 
   emitAddFolder(folder: Folder) {
