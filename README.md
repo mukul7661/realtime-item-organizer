@@ -12,7 +12,7 @@ npm run preview
 
 # Open a new terminal
 cd server
-cp .env.example .env  # please edit DATABASE_URL 
+cp .env.example .env  # please edit DATABASE_URL, AWS CREDS
 npm install
 npm run build
 npm start
