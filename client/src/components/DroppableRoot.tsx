@@ -8,6 +8,7 @@ const DroppableRoot = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <StyledRoot ref={setNodeRef} $isOver={isOver}>
+      <div>Root Folder</div>
       {children}
     </StyledRoot>
   );

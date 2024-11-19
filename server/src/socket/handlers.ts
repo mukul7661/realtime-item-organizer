@@ -79,8 +79,6 @@ export class SocketHandlers {
           this.prisma.item.upsert({
             where: { id: item.id },
             update: {
-              title: item.title,
-              icon: item.icon,
               folderId: item.folderId,
               order: item.order,
             },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -28,6 +28,9 @@ function App() {
   const [newFolderName, setNewFolderName] = useState("");
   const [activeItem, setActiveItem] = useState<Item | null>(null);
   const [iconFile, setIconFile] = useState<File | null>(null);
+  const [itemError, setItemError] = useState("");
+  const [folderError, setFolderError] = useState("");
+  const [isItemLoading, setIsItemLoading] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -36,6 +39,8 @@ function App() {
       },
     })
   );
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     socketService.connect();
@@ -47,6 +52,7 @@ function App() {
       },
       ({ newItem }) => {
         setItems((prevItems) => [...prevItems, newItem]);
+        setIsItemLoading(false);
       }
     );
 
@@ -149,26 +155,48 @@ function App() {
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItemTitle.trim() || !iconFile) return;
+    setItemError("");
+
+    if (!newItemTitle.trim()) {
+      setItemError("Please enter an item title");
+      return;
+    }
+    if (!iconFile) {
+      setItemError("Please select an icon file");
+      return;
+    }
+
+    setIsItemLoading(true);
     const id = crypto.randomUUID();
     const formData = new FormData();
     formData.append("title", newItemTitle);
     formData.append("icon", iconFile);
     formData.append("order", items.length.toString());
     formData.append("id", id);
+
     try {
       await createItem(formData);
       socketService.emitAddItem(id);
       setNewItemTitle("");
       setIconFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (error) {
+      setIsItemLoading(false);
+      setItemError("Failed to create item. Please try again.");
       console.error("Failed to create item:", error);
     }
   };
 
   const handleAddFolder = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFolderName.trim()) return;
+    setFolderError("");
+
+    if (!newFolderName.trim()) {
+      setFolderError("Please enter a folder name");
+      return;
+    }
 
     const newFolder = {
       id: crypto.randomUUID(),
@@ -185,30 +213,39 @@ function App() {
     <Container>
       <ControlPanel>
         <Form onSubmit={handleAddItem}>
-          <Input
-            type="text"
-            value={newItemTitle}
-            onChange={(e) => setNewItemTitle(e.target.value)}
-            placeholder="New item title"
-          />
-          <FileInput
-            type="file"
-            accept=".png,.jpg,.jpeg,.svg"
-            onChange={(e) => setIconFile(e.target.files?.[0] || null)}
-          />
-          <Button type="submit" disabled={!iconFile || !newItemTitle.trim()}>
-            Add Item
-          </Button>
+          <FormGroup>
+            <Input
+              type="text"
+              value={newItemTitle}
+              onChange={(e) => setNewItemTitle(e.target.value)}
+              placeholder="New item title"
+              disabled={isItemLoading}
+            />
+            <FileInput
+              ref={fileInputRef}
+              type="file"
+              accept=".png,.jpg,.jpeg,.svg"
+              onChange={(e) => setIconFile(e.target.files?.[0] || null)}
+              disabled={isItemLoading}
+            />
+            <Button type="submit" disabled={isItemLoading}>
+              {isItemLoading ? "Adding Item..." : "Add Item"}
+            </Button>
+            {itemError && <ErrorMessage>{itemError}</ErrorMessage>}
+          </FormGroup>
         </Form>
 
         <Form onSubmit={handleAddFolder}>
-          <Input
-            type="text"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            placeholder="New folder name"
-          />
-          <Button type="submit">Add Folder</Button>
+          <FormGroup>
+            <Input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="New folder name"
+            />
+            <Button type="submit">Add Folder</Button>
+            {folderError && <ErrorMessage>{folderError}</ErrorMessage>}
+          </FormGroup>
         </Form>
       </ControlPanel>
 
@@ -316,6 +353,18 @@ const FileInput = styled.input`
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 4px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ErrorMessage = styled.div`
+  color: #dc3545;
+  font-size: 14px;
+  margin-top: 4px;
 `;
 
 export default App;
