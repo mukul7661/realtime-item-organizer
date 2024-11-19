@@ -1,6 +1,6 @@
 # Run the app using following steps
 
- ```
+ ```bash
 git clone https://github.com/mukul7661/realtime-item-organizer
 cd realtime-item-organizer
 
